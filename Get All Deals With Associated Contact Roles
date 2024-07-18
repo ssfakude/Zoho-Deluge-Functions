@@ -1,0 +1,50 @@
+all_deals= zoho.crm.getRecords("Deals");
+records_per_page = 200; //The maximum number of records you can get for get records call is 200
+info "Number of Pages needed: "+all_deals.size()/records_per_page;
+//----------------Get all contact roles and put in collection---------------------
+cont_roles_resp = invokeUrl 
+[
+	url: "https://www.zohoapis.com/crm/v6/Contacts/roles"
+	type: GET
+	connection: "crm"
+];
+cont_roles_resp =  cont_roles_resp.get("contact_roles");
+all_contact_roles = Collection();
+for each cont in cont_roles_resp
+{	
+	role_info = map();
+	all_contact_roles.insert(cont.get("name"):cont.get("id"));
+}
+//----------------------------End------------------------------------------
+pages = {1,2,3,4,5,6,7,8,9,10}; // 200x 10 = 2000 records (My records_per_page is =10  line 2)
+deals_list = List();
+for each  number in pages
+{
+	deals = zoho.crm.getRecords("Deals",number,records_per_page);
+	deals_list.addAll(deals);
+	for each deal in deals
+	{
+		deal_id=deal.get("id");
+		response = zoho.crm.getRelatedRecords("Contact_Roles", "Deals", deal_id);
+		cont_roles = list();
+		if(response.size() > 0)
+		{
+			for each record in response
+			{	role_info = map();
+				role_info.put("Contact_ID", record.get("id"));
+				role_info.put("Role_Name", all_contact_roles.getKey(record.get("Contact_Role")) );
+				cont_roles.add(role_info);
+			}
+		}
+		results = {"Deal_ID": deal_id, "Contact_Roles":cont_roles };
+		info results; 
+		//This how the results should look like: 
+//{"Deal_ID":"6336038000000499269","Contact_Roles":[{"Contact_ID":"6336038000000499187","Role_Name":"Decision Maker"},{"Contact_ID":"6336038000000499189","Role_Name":"Engineering Lead"}]}
+	}
+	info deals_list.size();
+	if(deals.size() < records_per_page)
+	{
+	break;
+	}
+}
+return "";
